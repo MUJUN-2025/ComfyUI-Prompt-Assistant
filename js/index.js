@@ -11,6 +11,7 @@ import { EventManager } from './utils/eventManager.js';
 import { ResourceManager } from './utils/resourceManager.js';
 import { UIToolkit } from "./utils/UIToolkit.js";
 import { logger } from './utils/logger.js';
+import { installThemeTokenFallbacks } from './utils/themeCompat.js';
 import { HistoryCacheService, TagCacheService } from './services/cache.js';
 import { imageCaption, ImageCaption } from './modules/imageCaption.js';
 import { nodeHelpTranslator } from './modules/nodeHelpTranslator.js';
@@ -48,6 +49,9 @@ app.registerExtension({
      */
     async setup() {
         try {
+            // 补全新版前端缺失的 PrimeVue 设计令牌（需在任何插件 UI 渲染之前执行）
+            installThemeTokenFallbacks();
+
             // 初始化节点挂载服务（需要在其他初始化之前）
             nodeMountService.initialize();
 

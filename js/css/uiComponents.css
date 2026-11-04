@@ -34,6 +34,21 @@
     --settings-tooltip-z-index: 10230;
 }
 
+/* ---新版前端（ComfyUI 0.44+ / Reka UI 模态弹窗）交互兼容--- */
+/* 新版设置面板打开时会给 <body> 设置 pointer-events: none，仅给自身弹窗层恢复 auto。
+   pointer-events 可继承，插件通过 document.body.appendChild() 挂载的浮层会继承 none，
+   表现为"弹窗可见但完全点不动"。这里显式恢复交互。
+   注意：.pa-dropdown-panel 由 .p-hidden / .p-enter-active 控制开关，
+        .pa-tooltip 需保持 pointer-events: none，二者不在本规则内。 */
+.settings-modal,
+.settings-modal-overlay,
+.pa-multi-listbox-overlay,
+.pa-multi-listbox,
+.pa-context-menu,
+.pa-confirm-popup {
+    pointer-events: auto;
+}
+
 /* ===================================================
    2. 设置弹窗通用样式 (所有设置模块共用)
    =================================================== */
@@ -150,11 +165,12 @@
     /* height: 760px; */
     margin: 0;
     z-index: var(--settings-modal-z-index);
-    background-color: var(--p-dialog-background);
-    border: 1px solid var(--p-dialog-border-color);
-    border-radius: var(--p-dialog-border-radius);
-    box-shadow: var(--p-dialog-shadow);
-    color: var(--p-dialog-color);
+    /* PrimeVue component tokens may not be loaded by the host settings page. */
+    background-color: var(--p-dialog-background, var(--comfy-menu-bg, #202020));
+    border: 1px solid var(--p-dialog-border-color, var(--border-color, #4b4b4b));
+    border-radius: var(--p-dialog-border-radius, 12px);
+    box-shadow: var(--p-dialog-shadow, 0 16px 48px #0006);
+    color: var(--p-dialog-color, var(--fg-color, #eee));
     /* 添加弹性布局 */
     display: flex;
     flex-direction: column;
@@ -233,8 +249,12 @@
 
 /* 标题栏样式 */
 .settings-modal .p-dialog-header {
-    padding: var(--p-dialog-header-padding);
-    border-bottom: 1px solid var(--p-dialog-border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: var(--p-dialog-header-padding, 1.25rem 1.5rem);
+    border-bottom: 1px solid var(--p-dialog-border-color, var(--border-color, #4b4b4b));
 
     /* 固定头部 */
     flex: 0 0 auto;
@@ -274,6 +294,9 @@
 }
 
 .settings-modal .p-dialog-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
     padding: 10px 40px 20px 40px;
 
 
@@ -504,6 +527,46 @@
 
 }
 
+/* These DOM-created controls cannot rely on PrimeVue's lazy component CSS. */
+.pa-settings-button,
+.pa-settings-root .p-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.875rem;
+    border: 1px solid var(--p-button-primary-border-color, var(--p-primary-500, #3b82f6));
+    border-radius: var(--p-button-border-radius, 6px);
+    background: var(--p-button-primary-background, var(--p-primary-500, #3b82f6));
+    color: var(--p-button-primary-color, #fff);
+    font: inherit;
+    cursor: pointer;
+}
+
+.pa-settings-root .p-button-secondary {
+    background: var(--p-button-secondary-background, var(--comfy-input-bg, #353535));
+    border-color: var(--p-button-secondary-border-color, var(--border-color, #4b4b4b));
+    color: var(--p-button-secondary-color, var(--fg-color, #eee));
+}
+
+.pa-settings-root .p-button-text {
+    background: transparent;
+    border-color: transparent;
+    color: var(--fg-color, #eee);
+}
+
+.pa-settings-button:disabled,
+.pa-settings-root .p-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pa-settings-button:focus-visible,
+.pa-settings-root .p-button:focus-visible {
+    outline: 2px solid var(--p-primary-500, #3b82f6);
+    outline-offset: 2px;
+}
+
 /* ---危险按钮样式--- */
 /* 用于删除等危险操作的按钮 - 限定在插件作用域内 */
 .pa-settings-root .p-button-danger,
@@ -555,6 +618,9 @@
 }
 
 .pa-dropdown .pa-dropdown-label {
+    display: flex;
+    align-items: center;
+    padding: 0 0.75rem;
     flex: 1 1 auto;
     border: 0 none;
     color: var(--p-inputtext-color);
@@ -601,6 +667,7 @@
 }
 
 /* 隐藏辅助可访问性选择器 - 限定在插件作用域内 */
+.pa-dropdown > .p-hidden-accessible,
 .pa-settings-root .p-hidden-accessible,
 .prompt-assistant-container .p-hidden-accessible {
     position: absolute !important;

@@ -6,24 +6,24 @@
 import { app } from "../../../../scripts/app.js";
 import { logger } from '../utils/logger.js';
 import { tUI, localizeElement, observeLocalizedMutations } from "../utils/uiI18n.js";
+import { markFloatLayer } from '../utils/comfyDialogCompat.js';
 
 // ---动态 Z-Index 计算---
 /**
  * 获取 ComfyUI 设置弹窗的 z-index 值
- * 只针对 ComfyUI 的 p-dialog 元素进行查找，避免遍历所有 DOM 元素造成性能问题
+ * 同时包含已打开的小助手弹窗，确保编辑和确认窗口高于父窗口。
  * @returns {number} ComfyUI 弹窗的 z-index 值，如果不存在则返回基础值
  */
 function getComfyUIDialogZIndex() {
-    // ComfyUI 使用 PrimeVue，设置弹窗的类名是 .p-dialog
-    const comfyDialog = document.querySelector('.p-dialog');
-    if (comfyDialog) {
-        const zIndex = parseInt(window.getComputedStyle(comfyDialog).zIndex, 10);
+    let highestZIndex = 10200;
+    // 新版前端（0.44+）设置弹窗为 Reka UI，需同时扫描其容器标记，防止宿主层级高于插件固定值
+    for (const dialog of document.querySelectorAll('.p-dialog, .settings-modal, [data-reka-dialog-content], [data-dialog-key]')) {
+        const zIndex = parseInt(window.getComputedStyle(dialog).zIndex, 10);
         if (!isNaN(zIndex)) {
-            return zIndex;
+            highestZIndex = Math.max(highestZIndex, zIndex);
         }
     }
-    // 如果没有找到 ComfyUI 弹窗，返回 CSS 变量定义的基础值
-    return 10200;
+    return highestZIndex;
 }
 
 /**
@@ -65,6 +65,8 @@ export function createSettingsDialog(options) {
             // 创建遮罩层
             overlay = document.createElement('div');
             overlay.className = 'settings-modal-overlay';
+            // 新版前端模态弹窗会把 body 置为 pointer-events:none，需显式恢复遮罩层交互
+            markFloatLayer(overlay);
             document.body.appendChild(overlay);
         }
 
@@ -72,6 +74,8 @@ export function createSettingsDialog(options) {
         // 创建弹窗
         const modal = document.createElement('div');
         modal.className = 'settings-modal pa-settings-root';
+        // 标记为高优先级浮层：恢复点击能力、阻止上层 FocusScope 抢焦点、避免被判定为外部点击
+        markFloatLayer(modal);
 
         // 如果提供了额外的对话框类名，添加到modal
         if (dialogClassName) {
@@ -791,6 +795,8 @@ export function createSelectGroup(label, options, initialValue = null, config = 
         isOpen = true;
 
         // 将面板临时附加到 body 上以避免裁切
+        // pointer-events 交由 .p-hidden / .p-enter-active 的 CSS 规则控制，这里只标记层级
+        markFloatLayer(dropdownPanel, { pointerEvents: false });
         document.body.appendChild(dropdownPanel);
 
         // 计算下拉框相对于视口的位置
@@ -1017,6 +1023,8 @@ export function createComboBoxGroup(label, options = [], initialValue = '', conf
         if (isOpen) return;
         isOpen = true;
 
+        // pointer-events 交由 .p-hidden / .p-enter-active 的 CSS 规则控制，这里只标记层级
+        markFloatLayer(dropdownPanel, { pointerEvents: false });
         document.body.appendChild(dropdownPanel);
 
         const rect = comboContainer.getBoundingClientRect();
@@ -1250,7 +1258,7 @@ export function createSwitchControl(label, description, defaultChecked, onChange
  */
 export function createLoadingButton(text, onClick, showSuccessToast = true) {
     const button = document.createElement('button');
-    button.className = 'p-button p-component p-button-primary';
+    button.className = 'pa-settings-button p-button p-component p-button-primary';
     button.style.width = '208px'; // 相当于w-52
     button.innerHTML = `<span class="p-button-label">${tUI(text, text)}</span>`;
 
@@ -1587,6 +1595,7 @@ export function createConfirmPopup(options) {
     };
 
     // 将气泡框添加到 body
+    markFloatLayer(popup);
     document.body.appendChild(popup);
     localizeElement(popup);
 
@@ -1714,6 +1723,7 @@ export function showContextMenu(options) {
     });
 
     menu.appendChild(menuList);
+    markFloatLayer(menu);
     document.body.appendChild(menu);
 
     // 定位菜单
@@ -2132,6 +2142,9 @@ export function createMultiSelectListbox(options) {
 
     // 创建透明背景层
     const overlay = document.createElement('div');
+    overlay.className = 'pa-multi-listbox-overlay';
+    // 新版前端模态弹窗会把 body 置为 pointer-events:none，需显式恢复交互
+    markFloatLayer(overlay);
     overlay.style.cssText = `
         position: fixed;
         top: 0;
@@ -2139,6 +2152,7 @@ export function createMultiSelectListbox(options) {
         width: 100%;
         height: 100%;
         z-index: var(--settings-multi-listbox-z-index);
+        pointer-events: auto;
     `;
 
     overlay.appendChild(listbox);
@@ -2269,6 +2283,7 @@ export function createSplitButton(options) {
     menuList.className = 'pa-context-menu-list';
     menuList.setAttribute('role', 'menu');
     menuPanel.appendChild(menuList);
+    markFloatLayer(menuPanel);
     document.body.appendChild(menuPanel);
 
     let currentItems = items;
@@ -2334,6 +2349,7 @@ export function createSplitButton(options) {
             });
 
             submenuPanel.appendChild(submenuList);
+            markFloatLayer(submenuPanel);
             document.body.appendChild(submenuPanel);
 
             // 将子菜单面板添加到列表中，用于关闭时清理
